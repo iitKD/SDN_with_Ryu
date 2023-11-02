@@ -6,8 +6,7 @@ from mininet.cli import CLI
 
 # Create a custom topology
 class MyTopology(Topo):
-    def __init__(self):
-        Topo.__init__(self)
+    def build(self):
 
         # Add switches
         s1 = self.addSwitch('s1')
