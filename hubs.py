@@ -1,5 +1,7 @@
-from mininet.topo import Topo
 from mininet.net import Mininet
+from mininet.node import Controller
+from mininet.topo import Topo
+from mininet.log import setLogLevel
 
 # Create a custom topology
 class MyTopology(Topo):
