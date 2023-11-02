@@ -9,8 +9,8 @@ class MyTopology(Topo):
         Topo.__init__(self)
 
         # Add switches
-        s1 = self.addSwitch('s1')
-        s2 = self.addSWitch('s2')
+        s1 = self.addSwitch('s1', cls=OVSKernelSwitch)
+        s2 = self.addSWitch('s2', cls=OVSKernelSwitch)
         # Add hosts
         h1 = self.addHost('h1')
         h2 = self.addHost('h2')
