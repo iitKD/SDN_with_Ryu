@@ -1,7 +1,6 @@
 from mininet.net import Mininet
-from mininet.node import Controller
 from mininet.topo import Topo
-from mininet.log import setLogLevel
+
 
 # Create a custom topology
 class MyTopology(Topo):
@@ -25,4 +24,9 @@ class MyTopology(Topo):
         self.addLink(s1, s2)
         self.addLink(s2, h4)
         self.addLink(s2, h5)
-topos = { 'mytopo' : (lambda : MyTopology() ) }
+
+
+if __name__ == '__main__':
+    topo = MyTopology()
+    net = Mininet(topo)
+    net.start()
