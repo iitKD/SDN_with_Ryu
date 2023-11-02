@@ -31,7 +31,7 @@ class MyTopology(Topo):
 if __name__ == '__main__':
     topo = MyTopology()
     c1 = RemoteController('c1', ip='127.0.0.1')
-    net = Mininet(topo =topo, controller = c1)
+    net = Mininet(topo=topo, controller=c1)
     net.start()
     CLI(net)
     net.stop()
