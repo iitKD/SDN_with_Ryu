@@ -45,7 +45,20 @@ class FirewallMonitor(app_manager.RyuApp):
         self.add_flow(datapath, 1, match_h2_to_h5, actions)
         self.add_flow(datapath, 1, match_h3_to_h5, actions)
         self.add_flow(datapath, 1, match_h1_to_h4, actions)
+    def add_flow(self, datapath, priority, match, actions, buffer_id=None):
+        ofproto = datapath.ofproto
+        parser = datapath.ofproto_parser
 
+        inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS,
+                                             actions)]
+        if buffer_id:
+            mod = parser.OFPFlowMod(datapath=datapath, buffer_id=buffer_id,
+                                    priority=priority, match=match,
+                                    instructions=inst)
+        else:
+            mod = parser.OFPFlowMod(datapath=datapath, priority=priority,
+                                    match=match, instructions=inst)
+        datapath.send_msg(mod)
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def packet_in_handler(self, ev):
         msg = ev.msg
@@ -60,16 +73,5 @@ class FirewallMonitor(app_manager.RyuApp):
             self.packet_count += 1
             self.logger.info(f"Packet count from H3 on switch S1: {self.packet_count}")
 
-    def add_flow(self, datapath, priority, match, actions):
-        ofproto = datapath.ofproto
-        parser = datapath.ofproto_parser
-
-        inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS, actions)]
-        mod = parser.OFPFlowMod(
-            datapath=datapath,
-            priority=priority,
-            match=match,
-            instructions=inst
-        )
-        datapath.send_msg(mod)
+    
 
