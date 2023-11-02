@@ -1,5 +1,6 @@
 from mininet.net import Mininet
 from mininet.topo import Topo
+from mininet.cli import CLI
 
 
 # Create a custom topology
@@ -28,5 +29,8 @@ class MyTopology(Topo):
 
 if __name__ == '__main__':
     topo = MyTopology()
-    net = Mininet(topo)
+    c1 = RemoteController('c1', ip='127.0.0.1')
+    net = Mininet(topo =topo, controller = c1)
     net.start()
+    CLI(net)
+    net.stop()
