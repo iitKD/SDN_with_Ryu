@@ -1,5 +1,5 @@
 from mininet.net import Mininet
-from mininet.node import Controller
+from mininet.node import Controller, OVSKernelSwitch
 from mininet.topo import Topo
 from mininet.log import setLogLevel
 
@@ -10,7 +10,7 @@ class MyTopology(Topo):
 
         # Add switches
         s1 = self.addSwitch('s1', cls=OVSKernelSwitch)
-        s2 = self.addSWitch('s2', cls=OVSKernelSwitch)
+        s2 = self.addSwitch('s2', cls=OVSKernelSwitch)
         # Add hosts
         h1 = self.addHost('h1')
         h2 = self.addHost('h2')
