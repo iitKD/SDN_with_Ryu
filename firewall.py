@@ -73,12 +73,12 @@ class SimpleSwitch13(app_manager.RyuApp):
        
         if pkt.get_protocols(ipv4.ipv4):
             header = pkt.get_protocols(ipv4.ipv4)[0]
-            dst = header.dst
-            src = header.src
+            destination = header.dst
+            source = header.src
         if (src,dst) in blocked_pairs:
-            self.logger.info("Dropping packets between %s and %s "  , src, dst )
+            self.logger.info("Dropping packets between %s and %s "  , source, destination )
             return
-        if dpid ==1 and (in_port == 4 or in_port ==3):
+        if dpid ==1 and (in_port == 4):
             self.packet_counter += 1
         print("packets from host 3 flowing through switch 1 is ",self.packet_counter)
         print("-"*15)
@@ -86,7 +86,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 
         self.logger.info("packet form Host: %s through swithch: %s on port: %s to host: %s" , src, dpid, in_port, dst )
 
-
+        
         # self.mac_to_port[dpid][src] = in_port
 
         # if dst in self.mac_to_port[dpid]:
@@ -95,14 +95,13 @@ class SimpleSwitch13(app_manager.RyuApp):
         out_port = ofproto.OFPP_FLOOD
 
         actions = [parser.OFPActionOutput(out_port)]
-        match = parser.OFPMatch(in_port=in_port, eth_dst=dst, eth_src=src)
         # if out_port != ofproto.OFPP_FLOOD:
-            
+        #     match = parser.OFPMatch(in_port=in_port, eth_dst=dst, eth_src=src)
         #     if msg.buffer_id != ofproto.OFP_NO_BUFFER:
         #         self.add_flow(datapath, 1, match, actions, msg.buffer_id)
         #         return
         #     else:
-        self.add_flow(datapath, 1, match, actions)
+        #         self.add_flow(datapath, 1, match, actions)
         data = None
         if msg.buffer_id == ofproto.OFP_NO_BUFFER:
             data = msg.data
