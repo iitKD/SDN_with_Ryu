@@ -66,31 +66,28 @@ class SimpleSwitch13(app_manager.RyuApp):
         src = eth.src
 
         blocked_pairs = { 
-            ("10.0.0.1", "10.0.0.4"), ("10.0.0.4", "10.0.0.1"), ("10.0.0.2", "10.0.0.5"),
-            ("10.0.0.5", "10.0.0.2"), ("10.0.0.3", "10.0.0.5"), ("10.0.0.5","10.0.0.3")
+            ("10.0.0.1", "10.0.0.4"),("10.0.0.4", "10.0.0.1"),("10.0.0.2", "10.0.0.5"),
+            ("10.0.0.5", "10.0.0.2"),("10.0.0.3", "10.0.0.5"),("10.0.0.5","10.0.0.3")
         }
-        header = pkt.get_protocols(ipv4.ipv4)
+
        
-        if header : 
-            sou = header.src
-            dest = header.dst
-            if (sou, dest) in blocked_pairs:
-                self.logger.info("Dropping packets between %s and %s "  , sou, dest )
-                return
+        if pkt.get_protocols(ipv4.ipv4):
+            header = pkt.get_protocols(ipv4.ipv4)[0]
+            dst = header.dst
+            src = header.src
+        if (src,dst) in blocked_pairs:
+            self.logger.info("packets dropped between %s and %s" , src, dst )
+            return
         if dpid ==1 and in_port == 4:
             self.packet_counter += 1
             print("packets from host 3 flowing through switch 1 is ",self.packet_counter)
-        
 
 
         self.logger.info("packet form Host: %s through swithch: %s on port: %s to host: %s" , src, dpid, in_port, dst )
-
         
-    
         out_port = ofproto.OFPP_FLOOD
 
         actions = [parser.OFPActionOutput(out_port)]
-        
         data = None
         if msg.buffer_id == ofproto.OFP_NO_BUFFER:
             data = msg.data
