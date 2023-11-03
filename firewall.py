@@ -78,7 +78,7 @@ class SimpleSwitch13(app_manager.RyuApp):
         if (src,dst) in blocked_pairs:
             self.logger.info("packet form Host: %s through swithch: %s on port: %s to host: %s" , src, dpid, in_port, dst )
             return
-        if dpid ==1 and in_port == 4:
+        if dpid ==1 and (in_port == 4 or in_port ==3):
             self.packet_counter += 1
         print("packets from host 3 flowing through switch 1 is ",self.packet_counter)
         print("-"*15)
