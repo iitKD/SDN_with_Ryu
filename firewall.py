@@ -66,8 +66,8 @@ class SimpleSwitch13(app_manager.RyuApp):
         src = eth.src
 
         blocked_pairs = { 
-            ("10.0.0.1", "10.0.0.4"),("10.0.0.4", "10.0.0.1"),("10.0.0.2", "10.0.0.5"),
-            ("10.0.0.5", "10.0.0.2"),("10.0.0.3", "10.0.0.5"),("10.0.0.5","10.0.0.3")
+            ("10.0.0.1", "10.0.0.4"), ("10.0.0.4", "10.0.0.1"), ("10.0.0.2", "10.0.0.5"),
+            ("10.0.0.5", "10.0.0.2"), ("10.0.0.3", "10.0.0.5"), ("10.0.0.5","10.0.0.3")
         }
 
        
@@ -76,7 +76,7 @@ class SimpleSwitch13(app_manager.RyuApp):
             dst = header.dst
             src = header.src
         if (src,dst) in blocked_pairs:
-            self.logger.info("packet form Host: %s through swithch: %s on port: %s to host: %s" , src, dpid, in_port, dst )
+            self.logger.info("Dropping packets between %s and %s "  , src, dst )
             return
         if dpid ==1 and (in_port == 4 or in_port ==3):
             self.packet_counter += 1
@@ -85,21 +85,24 @@ class SimpleSwitch13(app_manager.RyuApp):
 
 
         self.logger.info("packet form Host: %s through swithch: %s on port: %s to host: %s" , src, dpid, in_port, dst )
-        self.mac_to_port[dpid][src] = in_port
 
-        if dst in self.mac_to_port[dpid]:
-            out_port = self.mac_to_port[dpid][dst]
-        else:
-            out_port = ofproto.OFPP_FLOOD
+
+        # self.mac_to_port[dpid][src] = in_port
+
+        # if dst in self.mac_to_port[dpid]:
+        #     out_port = self.mac_to_port[dpid][dst]
+        # else:
+        out_port = ofproto.OFPP_FLOOD
 
         actions = [parser.OFPActionOutput(out_port)]
-        if out_port != ofproto.OFPP_FLOOD:
-            match = parser.OFPMatch(in_port=in_port, eth_dst=dst, eth_src=src)
-            if msg.buffer_id != ofproto.OFP_NO_BUFFER:
-                self.add_flow(datapath, 1, match, actions, msg.buffer_id)
-                return
-            else:
-                self.add_flow(datapath, 1, match, actions)
+        match = parser.OFPMatch(in_port=in_port, eth_dst=dst, eth_src=src)
+        # if out_port != ofproto.OFPP_FLOOD:
+            
+        #     if msg.buffer_id != ofproto.OFP_NO_BUFFER:
+        #         self.add_flow(datapath, 1, match, actions, msg.buffer_id)
+        #         return
+        #     else:
+        self.add_flow(datapath, 1, match, actions)
         data = None
         if msg.buffer_id == ofproto.OFP_NO_BUFFER:
             data = msg.data
