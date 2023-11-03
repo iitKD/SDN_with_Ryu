@@ -78,9 +78,8 @@ class SimpleSwitch13(app_manager.RyuApp):
         if (src,dst) in blocked_pairs:
             self.logger.info("packet in switch:%s from :%s to:%s port:%s are dropped" , dpid, src, dst, in_port)
             return
-        if src == '00:00:00:00:00:03' or src == "10.0.0.3":
-            if dpid==1:
-                self.packet_count += 1
+        if dpid ==1 and in_port == 4:
+            self.packet_counter += 1
         print("packets from host 3 flowing through switch 1 is %d",self.packet_counter)
 
 
