@@ -69,11 +69,11 @@ class SimpleSwitch13(app_manager.RyuApp):
             ("10.0.0.1", "10.0.0.4"), ("10.0.0.4", "10.0.0.1"), ("10.0.0.2", "10.0.0.5"),
             ("10.0.0.5", "10.0.0.2"), ("10.0.0.3", "10.0.0.5"), ("10.0.0.5","10.0.0.3")
         }
-
+        header = pkt.get_protocols(ipv4.ipv4)
        
-        if pkt.get_protocols(ipv4.ipv4): 
-            dest = pkt.get_protocols(ipv4.ipv4).dst
-            sou = pkt.get_protocols(ipv4.ipv4).src
+        if header : 
+            sou = header.src
+            dest = header.dst
             if (sou, dest) in blocked_pairs:
                 self.logger.info("Dropping packets between %s and %s "  , sou, dest )
                 return
