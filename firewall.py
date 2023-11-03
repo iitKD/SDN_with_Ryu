@@ -40,10 +40,11 @@ class FirewallMonitor(app_manager.RyuApp):
         # # Drop the packets that match the firewall rules
         # self.add_flow(datapath, 0, match_h2_to_h5, actions)
         # self.add_flow(datapath, 0, match_h5_to_h2, actions)
-        actions = [parser.OFPActionOutput(ofproto.OFPPC_NONE, 0)]
+        actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER, ofproto.OFPCML_NO_BUFFER)]
 
         self.add_flow(datapath, 0, match_h2_to_h5, actions)
         self.add_flow(datapath, 0, match_h5_to_h2, actions)
+
 
         #self.add_flow(datapath, 1, match_h1_to_h4, actions)
     def add_flow(self, datapath, priority, match, actions):
