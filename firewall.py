@@ -1,18 +1,22 @@
+
 from ryu.base import app_manager
 from ryu.controller import ofp_event
-from ryu.controller.handler import MAIN_DISPATCHER, CONFIG_DISPATCHER
+from ryu.controller.handler import CONFIG_DISPATCHER, MAIN_DISPATCHER
 from ryu.controller.handler import set_ev_cls
 from ryu.ofproto import ofproto_v1_3
-from ryu.lib.packet import packet, ethernet
+from ryu.lib.packet import packet
+from ryu.lib.packet import ethernet, ipv4
+from ryu.lib.packet import ether_types
 
 
-class FirewallMonitor(app_manager.RyuApp):
+class SimpleSwitch13(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
 
     def __init__(self, *args, **kwargs):
-        super(FirewallMonitor, self).__init__(*args, **kwargs)
+        super(SimpleSwitch13, self).__init__(*args, **kwargs)
         self.mac_to_port = {}
-        self.packet_count = 0
+        self.packet_counter = 0
+        
 
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
     def switch_features_handler(self, ev):
@@ -20,100 +24,86 @@ class FirewallMonitor(app_manager.RyuApp):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
 
-        # Add firewall rules to prevent communication between specific hosts
-        match_h2_to_h5 = parser.OFPMatch(
-            eth_src='00:00:00:00:00:02',  # H2 MAC address
-            eth_dst='00:00:00:00:00:05'   # H3 MAC address
-        )
-        match_h5_to_h2 = parser.OFPMatch(
-            eth_src='00:00:00:00:00:05',  # H2 MAC address
-            eth_dst='00:00:00:00:00:02'   # H3 MAC address
-        )
-        match_h3_to_h5 = parser.OFPMatch(
-            eth_src='00:00:00:00:00:03',  # H2 MAC address
-            eth_dst='00:00:00:00:00:05'   # H3 MAC address
-        )
-        match_h5_to_h3 = parser.OFPMatch(
-            eth_src='00:00:00:00:00:05',  # H2 MAC address
-            eth_dst='00:00:00:00:00:03'   # H3 MAC address
-        )
-        match_h1_to_h4 = parser.OFPMatch(
-            eth_src='00:00:00:00:00:01',  # H1 MAC address
-            eth_dst='00:00:00:00:00:04'   # H4 MAC address
-        )
-        match_h4_to_h1 = parser.OFPMatch(
-            eth_src='00:00:00:00:00:04',  # H1 MAC address
-            eth_dst='00:00:00:00:00:01'   # H4 MAC address
-        )
-        #allow flows
-        match_h2_to_h4 = parser.OFPMatch(
-            eth_src='00:00:00:00:00:02',  # H2 MAC address
-            eth_dst='00:00:00:00:00:04'   # H3 MAC address
-        )
-        match_h4_to_h2 = parser.OFPMatch(
-            eth_src='00:00:00:00:00:04',  # H2 MAC address
-            eth_dst='00:00:00:00:00:02'   # H3 MAC address
-        )
-        match_h3_to_h4 = parser.OFPMatch(
-            eth_src='00:00:00:00:00:03',  # H2 MAC address
-            eth_dst='00:00:00:00:00:04'   # H3 MAC address
-        )
-        match_h4_to_h3 = parser.OFPMatch(
-            eth_src='00:00:00:00:00:04',  # H2 MAC address
-            eth_dst='00:00:00:00:00:03'   # H3 MAC address
-        )
+        match = parser.OFPMatch()
+        actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
+                                          ofproto.OFPCML_NO_BUFFER)]
+        self.add_flow(datapath, 0, match, actions)
 
-        match_h1_to_h5 = parser.OFPMatch(
-            eth_src='00:00:00:00:00:01',  # H1 MAC address
-            eth_dst='00:00:00:00:00:05'   # H4 MAC address
-        )
-        match_h5_to_h1 = parser.OFPMatch(
-            eth_src='00:00:00:00:00:05',  # H1 MAC address
-            eth_dst='00:00:00:00:00:01'   # H4 MAC address
-        )
-
-        drop_actions = []
-
-        self.add_flow(datapath, 0, match_h2_to_h5, drop_actions)
-        self.add_flow(datapath, 0, match_h5_to_h2, drop_actions)
-        self.add_flow(datapath, 0, match_h3_to_h5, drop_actions)
-        self.add_flow(datapath, 0, match_h5_to_h3, drop_actions)
-        self.add_flow(datapath, 0, match_h1_to_h4, drop_actions)
-        self.add_flow(datapath, 0, match_h4_to_h1, drop_actions)
-
-        allow_actions = [parser.OFPActionOutput(ofproto.OFPP_FLOOD)] 
-
-        self.add_flow(datapath, 0, match_h2_to_h4, allow_actions)
-        self.add_flow(datapath, 0, match_h4_to_h2, allow_actions)
-        self.add_flow(datapath, 0, match_h3_to_h4, allow_actions)
-        self.add_flow(datapath, 0, match_h4_to_h3, allow_actions)
-        self.add_flow(datapath, 0, match_h1_to_h5, allow_actions)
-        self.add_flow(datapath, 0, match_h5_to_h1, allow_actions)
-    def add_flow(self, datapath, priority, match, actions):
+    def add_flow(self, datapath, priority, match, actions, buffer_id=None):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
 
-        inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS, actions)]
-        mod = parser.OFPFlowMod(
-            datapath=datapath,
-            priority=priority,
-            match=match,
-            instructions=inst
-        )
+        inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS,
+                                             actions)]
+        if buffer_id:
+            mod = parser.OFPFlowMod(datapath=datapath, buffer_id=buffer_id,
+                                    priority=priority, match=match,
+                                    instructions=inst)
+        else:
+            mod = parser.OFPFlowMod(datapath=datapath, priority=priority,
+                                    match=match, instructions=inst)
         datapath.send_msg(mod)
+
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
-    def packet_in_handler(self, ev):
+    def _packet_in_handler(self, ev):
+        if ev.msg.msg_len < ev.msg.total_len:
+            self.logger.debug("packet truncated: only %s of %s bytes",
+                              ev.msg.msg_len, ev.msg.total_len)
         msg = ev.msg
         datapath = msg.datapath
         ofproto = datapath.ofproto
+        parser = datapath.ofproto_parser
+        in_port = msg.match['in_port']
+        dpid = datapath.id
+        self.mac_to_port.setdefault(dpid, {})
 
         pkt = packet.Packet(msg.data)
-        eth = pkt.get_protocol(ethernet.ethernet)
+        eth = pkt.get_protocols(ethernet.ethernet)[0]
 
-        # Log MAC addresses to help with debugging
-        self.logger.info(f"Source MAC: {eth.src}, Destination MAC: {eth.dst}")
+        if eth.ethertype == ether_types.ETH_TYPE_LLDP:
+            return
+        dst = eth.dst
+        src = eth.src
 
-        # Count packets coming from host H3 on switch S1
-        if datapath.id == 1 and eth.src == '00:00:00:00:00:03':
-            self.packet_count += 1
-            self.logger.info(f"Packet count from H3 on switch S1: {self.packet_count}")
+        blocked_pairs = { 
+            ("10.0.0.1", "10.0.0.4"),("10.0.0.4", "10.0.0.1"),("10.0.0.2", "10.0.0.5"),
+            ("10.0.0.5", "10.0.0.2"),("10.0.0.3", "10.0.0.5"),("10.0.0.5","10.0.0.3")
+        }
+
+       
+        if pkt.get_protocols(ipv4.ipv4):
+            header = pkt.get_protocols(ipv4.ipv4)[0]
+            dst = header.dst
+            src = header.src
+        if (src,dst) in blocked_pairs:
+            self.logger.info("packet in switch:%s from :%s to:%s port:%s are dropped" , dpid, src, dst, in_port)
+            return
+        if src == '00:00:00:00:00:03' or src == "10.0.0.3":
+            if dpid==1:
+                self.packet_count += 1
+        print("packets from host 3 flowing through switch 1 is %d",self.packet_counter)
+
+
+        self.logger.info("packet in switch:%s from :%s to:%s port:%s", dpid, src, dst, in_port)
+        self.mac_to_port[dpid][src] = in_port
+
+        if dst in self.mac_to_port[dpid]:
+            out_port = self.mac_to_port[dpid][dst]
+        else:
+            out_port = ofproto.OFPP_FLOOD
+
+        actions = [parser.OFPActionOutput(out_port)]
+        if out_port != ofproto.OFPP_FLOOD:
+            match = parser.OFPMatch(in_port=in_port, eth_dst=dst, eth_src=src)
+            if msg.buffer_id != ofproto.OFP_NO_BUFFER:
+                self.add_flow(datapath, 1, match, actions, msg.buffer_id)
+                return
+            else:
+                self.add_flow(datapath, 1, match, actions)
+        data = None
+        if msg.buffer_id == ofproto.OFP_NO_BUFFER:
+            data = msg.data
+
+        out = parser.OFPPacketOut(datapath=datapath, buffer_id=msg.buffer_id,
+                                  in_port=in_port, actions=actions, data=data)
+        datapath.send_msg(out)
