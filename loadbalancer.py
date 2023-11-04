@@ -23,7 +23,6 @@ class LoadBalancerApp(app_manager.RyuApp):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
 
-        # Install the load balancing flow rule
         match = parser.OFPMatch(eth_type=ether_types.ETH_TYPE_IP, ipv4_dst=self.virtual_ip)
         self.server_index = (self.server_index + 1) % len(self.server_ips)
         actions = [parser.OFPActionSetField(eth_dst=self.server_macs[self.server_index]),
