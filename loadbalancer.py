@@ -14,8 +14,8 @@ class LoadBalancer(app_manager.RyuApp):
     def __init__(self, *args, **kwargs):
         super(LoadBalancer, self).__init__(*args, **kwargs)
         self.mac_to_port = {}
-        self.srv_ip = {"10.0.0.4", "10.0.0.5"}
-        self.srv_mac = {'00:00:00:00:00:04', '00:00:00:00:00:05'}
+        self.srv_ip = ["10.0.0.4", "10.0.0.5"]
+        self.srv_mac = ['00:00:00:00:00:04', '00:00:00:00:00:05']
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
     def switch_features_handler(self, ev):
         datapath = ev.msg.datapath
