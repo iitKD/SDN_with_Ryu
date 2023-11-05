@@ -108,6 +108,7 @@ class LoadBalancer(app_manager.RyuApp):
                 dst_mac = eth.dst
                 src_mac = eth.src
                 server_out_port = self.SERVER_PORT
+                handled = False
                 if ip_header.dst == self.VIRTUAL_IP:
                     if dst_mac == self.srv_mac[0]:
                         server_dst_ip = self.srv_ip[0]
@@ -131,7 +132,9 @@ class LoadBalancer(app_manager.RyuApp):
                             parser.OFPActionOutput(in_port)]
 
                     self.add_flow(datapath, 20, match, actions)
-                    return 
+                    handled = True
+                if handled:
+                    return
             data = None
             if msg.buffer_id == ofproto.OFP_NO_BUFFER:
                 data = msg.data
