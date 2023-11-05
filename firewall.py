@@ -57,7 +57,8 @@ class firewall(app_manager.RyuApp):
             return
         dst = eth.dst
         src = eth.src
-
+        self.mac_to_port[dpid][src] = in_port
+        
         blocked_IP_pairs = {("10.0.0.1", "10.0.0.4"),("10.0.0.2", "10.0.0.5"),("10.0.0.3", "10.0.0.5")}
         blocked_MAC_pairs = {('00:00:00:00:00:01','00:00:00:00:00:04'), ('00:00:00:00:00:02','00:00:00:00:00:05'), ('00:00:00:00:00:03','00:00:00:00:00:05')}
        
@@ -65,10 +66,10 @@ class firewall(app_manager.RyuApp):
             header = pkt.get_protocols(ipv4.ipv4)[0]
             dst = header.dst
             src = header.src
-
+        
         if (src,dst) in blocked_IP_pairs or (dst,src) in blocked_IP_pairs:
-            self.logger.info("packets dropped between %s and %s" , src, dst )
-            return
+                self.logger.info("packets dropped between %s and %s" , src, dst )
+                return
         
         if (src,dst) in blocked_MAC_pairs or (dst,src) in blocked_MAC_pairs:
             self.logger.info("packets dropped between %s and %s" , src, dst )
@@ -78,11 +79,21 @@ class firewall(app_manager.RyuApp):
             print("packets from host 3 flowing through switch 1 is ",self.packet_counter)
 
 
-        self.logger.info("packet form Host: %s through swithch: %s on port: %s to host: %s" , eth.src, dpid, in_port, eth.dst )
-        
-        out_port = ofproto.OFPP_FLOOD
-
+        if dst in self.mac_to_port[dpid]:
+            out_port = self.mac_to_port[dpid][dst]
+        else:
+            out_port = ofproto.OFPP_FLOOD        
         actions = [parser.OFPActionOutput(out_port)]
+
+        if out_port != ofproto.OFPP_FLOOD:
+            match = parser.OFPMatch(in_port=in_port, eth_dst=dst, eth_src=src)
+            # verify if we have a valid buffer_id, if yes avoid to send both
+            # flow_mod & packet_out
+            if msg.buffer_id != ofproto.OFP_NO_BUFFER:
+                self.add_flow(datapath, 1, match, actions, msg.buffer_id)
+                return
+            else:
+                self.add_flow(datapath, 1, match, actions)
         data = None
         if msg.buffer_id == ofproto.OFP_NO_BUFFER:
             data = msg.data
