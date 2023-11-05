@@ -110,23 +110,23 @@ class LoadBalancer(app_manager.RyuApp):
                 else:
                     server_dst_ip = self.srv_ip[1]
                     # Route to server
-                    match = parser.OFPMatch(in_port=in_port, eth_type=ether_types.ETH_TYPE_IP, ip_proto=ip_header.proto,
+                match = parser.OFPMatch(in_port=in_port, eth_type=ether_types.ETH_TYPE_IP, ip_proto=ip_header.proto,
                                             ipv4_dst=self.VIRTUAL_IP)
 
-                    actions = [parser.OFPActionSetField(ipv4_dst=server_dst_ip),
+                actions = [parser.OFPActionSetField(ipv4_dst=server_dst_ip),
                             parser.OFPActionOutput(server_out_port)]
 
-                    self.add_flow(datapath, 20, match, actions)
+                self.add_flow(datapath, 20, match, actions)
                     # Reverse route from server
-                    match = parser.OFPMatch(in_port=server_out_port, eth_type=ether_types.ETH_TYPE_IP,
+                match = parser.OFPMatch(in_port=server_out_port, eth_type=ether_types.ETH_TYPE_IP,
                                             ip_proto=ip_header.proto,
                                             ipv4_src=server_dst_ip,
                                             eth_dst=src_mac)
-                    actions = [parser.OFPActionSetField(ipv4_src=self.VIRTUAL_IP),
+                actions = [parser.OFPActionSetField(ipv4_src=self.VIRTUAL_IP),
                             parser.OFPActionOutput(in_port)]
 
-                    self.add_flow(datapath, 20, match, actions)
-                    handled = True
+                self.add_flow(datapath, 20, match, actions)
+                handled = True
             self.logger.info("TCP Packet handled : " + str(handled))
             if handled:
                 return
