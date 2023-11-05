@@ -9,11 +9,11 @@ from ryu.lib.packet import ethernet, ipv4
 from ryu.lib.packet import ether_types
 
 
-class SimpleSwitch13(app_manager.RyuApp):
+class firewall(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
 
     def __init__(self, *args, **kwargs):
-        super(SimpleSwitch13, self).__init__(*args, **kwargs)
+        super(firewall, self).__init__(*args, **kwargs)
         self.mac_to_port = {}
         self.packet_counter = 0
         
@@ -29,26 +29,19 @@ class SimpleSwitch13(app_manager.RyuApp):
                                           ofproto.OFPCML_NO_BUFFER)]
         self.add_flow(datapath, 0, match, actions)
 
-    def add_flow(self, datapath, priority, match, actions, buffer_id=None):
+    def add_flow(self, datapath, priority, match, actions):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
 
         inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS,
                                              actions)]
-        if buffer_id:
-            mod = parser.OFPFlowMod(datapath=datapath, buffer_id=buffer_id,
-                                    priority=priority, match=match,
-                                    instructions=inst)
-        else:
-            mod = parser.OFPFlowMod(datapath=datapath, priority=priority,
+        
+        mod = parser.OFPFlowMod(datapath=datapath, priority=priority,
                                     match=match, instructions=inst)
         datapath.send_msg(mod)
 
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def _packet_in_handler(self, ev):
-        if ev.msg.msg_len < ev.msg.total_len:
-            self.logger.debug("packet truncated: only %s of %s bytes",
-                              ev.msg.msg_len, ev.msg.total_len)
         msg = ev.msg
         datapath = msg.datapath
         ofproto = datapath.ofproto
@@ -62,28 +55,25 @@ class SimpleSwitch13(app_manager.RyuApp):
 
         if eth.ethertype == ether_types.ETH_TYPE_LLDP:
             return
-        dst = eth.dst
-        src = eth.src
+        
 
-        blocked_pairs = { 
-            ("10.0.0.1", "10.0.0.4"),("10.0.0.4", "10.0.0.1"),("10.0.0.2", "10.0.0.5"),
-            ("10.0.0.5", "10.0.0.2"),("10.0.0.3", "10.0.0.5"),("10.0.0.5","10.0.0.3")
-        }
-
+        blocked_IP_pairs = {("10.0.0.1", "10.0.0.4"),("10.0.0.2", "10.0.0.5"),("10.0.0.3", "10.0.0.5")}
+        blocked_MAC_pairs = {('00:00:00:00:00:01','00:00:00:00:00:04'), ('00:00:00:00:00:02','00:00:00:00:00:05'), ('00:00:00:00:00:03','00:00:00:00:00:05')}
        
         if pkt.get_protocols(ipv4.ipv4):
             header = pkt.get_protocols(ipv4.ipv4)[0]
-            dst = header.dst
-            src = header.src
-        if (src,dst) in blocked_pairs:
-            self.logger.info("packets dropped between %s and %s" , src, dst )
+        if (header.src,header.dst) in blocked_IP_pairs or (header.dst,header.src) in blocked_IP_pairs:
+            self.logger.info("packets dropped between %s and %s" , header.src, header.dst )
             return
-        if dpid ==1 and in_port == 4:
+        if (eth.src,eth.dst) in blocked_MAC_pairs or (eth.dst,eth.src) in blocked_MAC_pairs:
+            self.logger.info("packets dropped between %s and %s" , eth.src, eth.dst )
+            return
+        if dpid ==1 and in_port == 3:
             self.packet_counter += 1
             print("packets from host 3 flowing through switch 1 is ",self.packet_counter)
 
 
-        self.logger.info("packet form Host: %s through swithch: %s on port: %s to host: %s" , src, dpid, in_port, dst )
+        self.logger.info("packet form Host: %s through swithch: %s on port: %s to host: %s" , eth.src, dpid, in_port, eth.dst )
         
         out_port = ofproto.OFPP_FLOOD
 

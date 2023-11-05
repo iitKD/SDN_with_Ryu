@@ -12,11 +12,11 @@ class MyTopology(Topo):
         s1 = self.addSwitch('s1')
         s2 = self.addSwitch('s2')
         # Add hosts
-        h1 = self.addHost('h1')
-        h2 = self.addHost('h2')
-        h3 = self.addHost('h3')
-        h4 = self.addHost('h4')
-        h5 = self.addHost('h5')
+        h1 = self.addHost('h1', mac ="00:00:00:00:00:01")
+        h2 = self.addHost('h2', mac ="00:00:00:00:00:02")
+        h3 = self.addHost('h3', mac ="00:00:00:00:00:03")
+        h4 = self.addHost('h4', mac ="00:00:00:00:00:04")
+        h5 = self.addHost('h5', mac ="00:00:00:00:00:05")
 
         # Connect hosts to the switch
         self.addLink(h1, s1)
