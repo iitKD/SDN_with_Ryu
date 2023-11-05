@@ -7,8 +7,6 @@ from ryu.ofproto import ofproto_v1_3
 from ryu.lib.packet import packet, ether_types, ipv4, arp, ethernet
 from ryu.lib.mac import haddr_to_int
 
-
-
 class LoadBalancer(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
     VIRTUAL_IP = '10.0.0.42' 
@@ -56,19 +54,14 @@ class LoadBalancer(app_manager.RyuApp):
 
         if eth.ethertype == ether_types.ETH_TYPE_LLDP:
             return
-        
-        dst_mac = eth.dst
-        src_mac = eth.src
-
-        
         self.mac_to_port.setdefault(dpid, {})
 
-        self.logger.info("packet in %s %s %s %s", dpid, src_mac, dst_mac, in_port)
+        self.logger.info("packet form Host: %s through swithch: %s on port: %s to host: %s" , eth.src, datapath.id, in_port, eth.dst )
 
-        self.mac_to_port[dpid][src_mac] = in_port
+        self.mac_to_port[dpid][eth.src] = in_port
 
-        if dst_mac in self.mac_to_port[dpid]:
-            out_port = self.mac_to_port[dpid][dst_mac]
+        if eth.dst in self.mac_to_port[dpid]:
+            out_port = self.mac_to_port[dpid][eth.dst]
         else:
             out_port = ofproto.OFPP_FLOOD
 
@@ -76,43 +69,46 @@ class LoadBalancer(app_manager.RyuApp):
 
         
         if out_port != ofproto.OFPP_FLOOD:
-            match = parser.OFPMatch(in_port=in_port, eth_dst=dst_mac, eth_src=src_mac)
+            match = parser.OFPMatch(in_port=in_port, eth_dst=eth.dst, eth_src=eth.src )
             if msg.buffer_id != ofproto.OFP_NO_BUFFER:
                 self.add_flow(datapath, 10, match, actions, msg.buffer_id)
                 return
             else:
                 self.add_flow(datapath, 10, match, actions)
 
-        # Handle ARP Packet
-        if eth.ethertype == ether_types.ETH_TYPE_ARP:
-            arp_header = pkt.get_protocol(arp.arp)
+       
+        if dpid ==2:
+            out = parser.OFPPacketOut(datapath=datapath, buffer_id=ofproto.OFP_NO_BUFFER, in_port=in_port, actions=actions, data=msg.data)
+            datapath.send_msg(out)
+        else:
+            if eth.ethertype == ether_types.ETH_TYPE_ARP:
+                arp_header = pkt.get_protocol(arp.arp)
 
-            if arp_header.dst_ip == self.VIRTUAL_IP and arp_header.opcode == arp.ARP_REQUEST:
-                
-                reply_packet = self.ARP_handler(arp_header.src_ip, arp_header.src_mac)
-                actions = [parser.OFPActionOutput(in_port)]
-                packet_out = parser.OFPPacketOut(datapath=datapath, in_port=ofproto.OFPP_ANY,data=reply_packet.data, actions=actions, buffer_id=0xffffffff)
-                datapath.send_msg(packet_out)
-                self.logger.info("Sent the ARP reply packet")
-                return
+                if arp_header.dst_ip == self.VIRTUAL_IP and arp_header.opcode == arp.ARP_REQUEST:
+                    
+                    reply_packet = self.ARP_handler(arp_header.src_ip, arp_header.src_mac)
+                    actions = [parser.OFPActionOutput(in_port)]
+                    packet_out = parser.OFPPacketOut(datapath=datapath, in_port=ofproto.OFPP_ANY,data=reply_packet.data, actions=actions, buffer_id=0xffffffff)
+                    datapath.send_msg(packet_out)
+                    self.logger.info("Sent the ARP reply packet")
+                    return
 
-        # Handle TCP Packet
-        if eth.ethertype == ether_types.ETH_TYPE_IP:
-            ip_header = pkt.get_protocol(ipv4.ipv4)
+          
+            if eth.ethertype == ether_types.ETH_TYPE_IP:
+                ip_header = pkt.get_protocol(ipv4.ipv4)
 
-            packet_handled = self.TCP_handler(datapath, in_port, ip_header, parser, dst_mac, src_mac)
-            self.logger.info("TCP packet handled: " + str(packet_handled))
-            if packet_handled:
-                return
+                packet_handled = self.TCP_handler(datapath, in_port, ip_header, parser, eth.dst, eth.src )
+                self.logger.info("TCP packet handled: " + str(packet_handled))
+                if packet_handled:
+                    return
+            
+            data = None
+            if msg.buffer_id == ofproto.OFP_NO_BUFFER:
+                data = msg.data
 
-        # Send if other packet
-        data = None
-        if msg.buffer_id == ofproto.OFP_NO_BUFFER:
-            data = msg.data
-
-        out = parser.OFPPacketOut(datapath=datapath, buffer_id=msg.buffer_id,
-                                  in_port=in_port, actions=actions, data=data)
-        datapath.send_msg(out)
+            out = parser.OFPPacketOut(datapath=datapath, buffer_id=msg.buffer_id,
+                                    in_port=in_port, actions=actions, data=data)
+            datapath.send_msg(out)
 
     def ARP_handler(self, dst_ip, dst_mac):
         src_ip = self.VIRTUAL_IP
