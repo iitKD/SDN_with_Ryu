@@ -103,7 +103,7 @@ class LoadBalancer(app_manager.RyuApp):
                         return
 
           
-            if eth.ethertype == ether_types.ETH_TYPE_IP:
+            elif eth.ethertype == ether_types.ETH_TYPE_IP:
                 ip_header = pkt.get_protocol(ipv4.ipv4)
                 dst_mac = eth.dst
                 src_mac = eth.src
@@ -133,7 +133,9 @@ class LoadBalancer(app_manager.RyuApp):
 
                     self.add_flow(datapath, 20, match, actions)
                     handled = True
+                    self.logger.info("something in the TCP packet 1")
                 if handled:
+                    self.logger.info("something in the TCP packet 2")
                     return
             data = None
             if msg.buffer_id == ofproto.OFP_NO_BUFFER:
