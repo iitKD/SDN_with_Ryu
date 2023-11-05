@@ -1,4 +1,3 @@
-
 from ryu.base import app_manager
 from ryu.controller import ofp_event
 from ryu.controller.handler import CONFIG_DISPATCHER, MAIN_DISPATCHER
@@ -128,11 +127,8 @@ class LoadBalancer(app_manager.RyuApp):
                                                 eth_dst=src_mac)
                     actionsip = [parser.OFPActionSetField(ipv4_src=self.VIRTUAL_IP),
                                 parser.OFPActionOutput(in_port)]
-                    print("hello")
+                    
                     self.add_flow(datapath, 20, match, actionsip)
-                    handled = True
-                self.logger.info("TCP Packet handled : " + str(handled))
-                if handled:
                     return
             data = None
             if msg.buffer_id == ofproto.OFP_NO_BUFFER:
