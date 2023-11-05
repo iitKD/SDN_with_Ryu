@@ -52,22 +52,26 @@ class firewall(app_manager.RyuApp):
 
         pkt = packet.Packet(msg.data)
         eth = pkt.get_protocols(ethernet.ethernet)[0]
-        IPheader = pkt.get_protocols(ipv4.ipv4)[0]
+        
         if eth.ethertype == ether_types.ETH_TYPE_LLDP:
             return
-        
+        dst = eth.dst
+        src = eth.src
 
         blocked_IP_pairs = {("10.0.0.1", "10.0.0.4"),("10.0.0.2", "10.0.0.5"),("10.0.0.3", "10.0.0.5")}
         blocked_MAC_pairs = {('00:00:00:00:00:01','00:00:00:00:00:04'), ('00:00:00:00:00:02','00:00:00:00:00:05'), ('00:00:00:00:00:03','00:00:00:00:00:05')}
        
-        if IPheader:
-            ipSrc = IPheader.src
-            ipDst = IPheader.dst
-        if (ipSrc,ipDst) in blocked_IP_pairs or (ipDst,ipSrc) in blocked_IP_pairs:
-            self.logger.info("packets dropped between %s and %s" , ipSrc, ipDst )
+        if pkt.get_protocols(ipv4.ipv4):
+            header = pkt.get_protocols(ipv4.ipv4)[0]
+            dst = header.dst
+            src = header.src
+
+        if (src,dst) in blocked_IP_pairs or (dst,src) in blocked_IP_pairs:
+            self.logger.info("packets dropped between %s and %s" , src, dst )
             return
-        if (eth.src,eth.dst) in blocked_MAC_pairs or (eth.dst,eth.src) in blocked_MAC_pairs:
-            self.logger.info("packets dropped between %s and %s" , eth.src, eth.dst )
+        
+        if (src,dst) in blocked_MAC_pairs or (dst,src) in blocked_MAC_pairs:
+            self.logger.info("packets dropped between %s and %s" , src, dst )
             return
         if dpid ==1 and in_port == 3:
             self.packet_counter += 1
