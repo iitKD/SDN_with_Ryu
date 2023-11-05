@@ -76,45 +76,39 @@ class LoadBalancer(app_manager.RyuApp):
             else:
                 self.add_flow(datapath, 10, match, actions)
 
-       
-        if dpid ==2:
-            out = parser.OFPPacketOut(datapath=datapath, buffer_id=ofproto.OFP_NO_BUFFER, in_port=in_port, actions=actions, data=msg.data)
-            datapath.send_msg(out)
-        else:
-            if eth.ethertype == ether_types.ETH_TYPE_ARP:
-                arp_header = pkt.get_protocol(arp.arp)
+        if eth.ethertype == ether_types.ETH_TYPE_ARP:
+            arp_header = pkt.get_protocol(arp.arp)
 
-                if arp_header.dst_ip == self.VIRTUAL_IP and arp_header.opcode == arp.ARP_REQUEST:
-                        src_ip = self.VIRTUAL_IP
-                        #implementing round robin for both server 
-                        src_mac = self.srv_mac[1] if haddr_to_int(arp_header.src_mac) % 2 == 1 else self.srv_mac[0]
-                        dst_mac = arp_header.src_mac
-                        dst_ip = arp_header.src_ip
-                        self.logger.info("Selected server MAC: " + src_mac)
-
-                        reply_packet = packet.Packet()
-                        reply_packet.add_protocol(ethernet.ethernet(dst=dst_mac, src=src_mac, ethertype=ether_types.ETH_TYPE_ARP))
-                        reply_packet.add_protocol(arp.arp(opcode=arp.ARP_REPLY, src_mac=src_mac, src_ip=src_ip,dst_mac=dst_mac, dst_ip=dst_ip))
-                        reply_packet.serialize()
-                        actions = [parser.OFPActionOutput(in_port)]
-                        packet_out = parser.OFPPacketOut(datapath=datapath, in_port=ofproto.OFPP_ANY,data=reply_packet.data, actions=actions, buffer_id=0xffffffff)
-                        datapath.send_msg(packet_out)
-                        self.logger.info("ARP reply sent")
-                        return
+            if arp_header.dst_ip == self.VIRTUAL_IP and arp_header.opcode == arp.ARP_REQUEST:
+                src_ip = self.VIRTUAL_IP
+                    #implementing round robin for both server 
+                src_mac = self.srv_mac[1] if haddr_to_int(arp_header.src_mac) % 2 == 1 else self.srv_mac[0]
+                dst_mac = arp_header.src_mac
+                dst_ip = arp_header.src_ip
+                self.logger.info("Selected server MAC: " + src_mac)
+                reply_packet = packet.Packet()
+                reply_packet.add_protocol(ethernet.ethernet(dst=dst_mac, src=src_mac, ethertype=ether_types.ETH_TYPE_ARP))
+                reply_packet.add_protocol(arp.arp(opcode=arp.ARP_REPLY, src_mac=src_mac, src_ip=src_ip,dst_mac=dst_mac, dst_ip=dst_ip))
+                reply_packet.serialize()
+                actions = [parser.OFPActionOutput(in_port)]
+                packet_out = parser.OFPPacketOut(datapath=datapath, in_port=ofproto.OFPP_ANY,data=reply_packet.data, actions=actions, buffer_id=0xffffffff)
+                datapath.send_msg(packet_out)
+                self.logger.info("ARP reply sent")
+                return
 
           
-            elif eth.ethertype == ether_types.ETH_TYPE_IP:
-                ip_header = pkt.get_protocol(ipv4.ipv4)
-                dst_mac = eth.dst
-                src_mac = eth.src
-                server_out_port = self.SERVER_PORT
-                handled = False
-                if ip_header.dst == self.VIRTUAL_IP:
-                    if dst_mac == self.srv_mac[0]:
+        if eth.ethertype == ether_types.ETH_TYPE_IP:
+            ip_header = pkt.get_protocol(ipv4.ipv4)
+            dst_mac = eth.dst
+            src_mac = eth.src
+            server_out_port = self.SERVER_PORT
+            handled = False
+            if ip_header.dst == self.VIRTUAL_IP:
+                if dst_mac == self.srv_mac[0]:
                         server_dst_ip = self.srv_ip[0]
                         
-                    else:
-                        server_dst_ip = self.srv_ip[1]
+                else:
+                    server_dst_ip = self.srv_ip[1]
                     # Route to server
                     match = parser.OFPMatch(in_port=in_port, eth_type=ether_types.ETH_TYPE_IP, ip_proto=ip_header.proto,
                                             ipv4_dst=self.VIRTUAL_IP)
@@ -133,14 +127,13 @@ class LoadBalancer(app_manager.RyuApp):
 
                     self.add_flow(datapath, 20, match, actions)
                     handled = True
-                    self.logger.info("something in the TCP packet 1")
-                if handled:
-                    self.logger.info("something in the TCP packet 2")
-                    return
-            data = None
-            if msg.buffer_id == ofproto.OFP_NO_BUFFER:
-                data = msg.data
+            self.logger.info("TCP Packet handled : " + str(handled))
+            if handled:
+                return
+        data = None
+        if msg.buffer_id == ofproto.OFP_NO_BUFFER:
+            data = msg.data
 
-            out = parser.OFPPacketOut(datapath=datapath, buffer_id=msg.buffer_id,
-                                    in_port=in_port, actions=actions, data=data)
-            datapath.send_msg(out)
+        out = parser.OFPPacketOut(datapath=datapath, buffer_id=msg.buffer_id,in_port=in_port, actions=actions, data=data)
+        datapath.send_msg(out)
+
